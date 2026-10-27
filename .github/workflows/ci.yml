@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      bench:
+        description: Download real Nasdaq sample data and run the benchmark and perf stat
+        type: boolean
+        default: false
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build, unit tests, fixture checks
+        run: sh tests/check_fixture.sh
+
+  bench:
+    if: github.event_name == 'workflow_dispatch' && inputs.bench
+    needs: build-and-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      SAMPLE_URL: https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/12302019.NASDAQ_ITCH50.gz
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install perf
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y linux-tools-common "linux-tools-$(uname -r)" || sudo apt-get install -y linux-tools-generic
+          sudo sysctl -w kernel.perf_event_paranoid=-1
+          perf --version
+      - name: Fetch the first 25M messages of the 2019-12-30 sample file
+        run: |
+          mkdir -p data
+          curl -sS --retry 5 "$SAMPLE_URL" | gzip -dc 2>/dev/null | python3 tools/cut_itch.py 25000000 > data/real_12302019_first25m.itch || true
+          sha256sum data/real_12302019_first25m.itch
+      - name: Correctness against the Python reference
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j"$(nproc)"
+          ./build/itchfeed data/real_12302019_first25m.itch > data/cpp.json
+          python3 tools/itch_ref.py data/real_12302019_first25m.itch > data/ref.json
+          python3 tools/compare.py data/cpp.json data/ref.json
+      - name: Benchmark
+        run: RUNS=5 CPU=1 CONFIGS="read:std mmap:std read:flat mmap:flat" bench/run.sh data/real_12302019_first25m.itch gha-runner
+      - name: perf stat
+        run: CPU=1 BOOK=flat bench/perf.sh data/real_12302019_first25m.itch gha-runner
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bench-gha-runner
+          path: bench/results/gha-runner
