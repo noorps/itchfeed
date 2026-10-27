@@ -12,5 +12,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -g -march=native")
 add_compile_options(-Wall -Wextra)
 
 include_directories(include)
+add_executable(itchfeed src/itchfeed.cpp)
+add_executable(test_parser tests/test_parser.cpp)
 
-# targets are added as the sources land
+enable_testing()
+add_test(NAME parser COMMAND test_parser)
