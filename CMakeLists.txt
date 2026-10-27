@@ -13,6 +13,7 @@ add_compile_options(-Wall -Wextra)
 
 include_directories(include)
 add_executable(itchfeed src/itchfeed.cpp)
+add_executable(itchbench src/itchbench.cpp)
 add_executable(test_parser tests/test_parser.cpp)
 
 enable_testing()
