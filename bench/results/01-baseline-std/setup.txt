@@ -1,4 +1,4 @@
 file: /data/real_12302019_first25m.itch (798778087 bytes, sha256 e9133f5fc47492a0...)
 runs: 5  cpu: 2  configs: read:std mmap:std  extra: none
-commit: unknown (dirty)
+commit: 0e4d1ff (filled in by hand: the image had no git, so the script printed "unknown (dirty)"; the tree matched 0e4d1ff plus the untracked, unused book_flat.hpp)
 note: the 3.5 GB sample download was still running on the host during runs 1-3.
