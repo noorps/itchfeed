@@ -22,10 +22,10 @@ events=task-clock,cycles,instructions,cache-references,cache-misses,branches,bra
 
 tmp=$(mktemp -d)
 mkfifo "$tmp/ctl" "$tmp/ack"
-exec 10<>"$tmp/ctl" 11<>"$tmp/ack"
+exec 8<>"$tmp/ctl" 9<>"$tmp/ack"
 for ingest in read mmap; do
     echo "perf stat: $ingest ($RUNS repeats)" >&2
-    PERF_CTL_FD=10 PERF_ACK_FD=11 perf stat -e "$events" --delay=-1 --control fd:10,11 -r "$RUNS" \
+    PERF_CTL_FD=8 PERF_ACK_FD=9 perf stat -e "$events" --delay=-1 --control fd:8,9 -r "$RUNS" \
         -o "$out/perf_$ingest.txt" \
         taskset -c "$CPU" build/itchbench "$file" --ingest "$ingest" --book "$BOOK" > /dev/null
     cat "$out/perf_$ingest.txt"
