@@ -1,0 +1,4 @@
+file: /data/real_12302019_first25m.itch (798778087 bytes, sha256 e9133f5fc47492a0...)
+runs: 5  cpu: 2  configs: read:std mmap:std  extra: none
+commit: unknown (dirty)
+note: the 3.5 GB sample download was still running on the host during runs 1-3.

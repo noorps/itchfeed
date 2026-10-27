@@ -1,0 +1,11 @@
+# perf record -e cpu-clock -F 2000 (software clock sampling; the WSL2 VM has no PMU), 
+# itchfeed --ingest mmap --book std on the first 25M messages of 12302019, pinned to cpu 2.
+# Self time by symbol, >= 1.5%.
+    28.47%  [.] itch::StdBook::on_add(itch::AddOrder const&)                                                                                          
+    28.43%  [.] itch::StdBook::remove(std::__detail::_Node_iterator<std::pair<unsigned long const, itch::StdBook::Order>, false, false>)              
+    15.29%  [.] std::_Hashtable<unsigned long, std::pair<unsigned long const, itch::StdBook::Order>, std::allocator<std::pair<unsigned long const, itc
+     4.07%  [.] std::_Hashtable<unsigned long, std::pair<unsigned long const, itch::StdBook::Order>, std::allocator<std::pair<unsigned long const, itc
+     2.11%  [.] std::_Hashtable<unsigned long, std::pair<unsigned long const, itch::StdBook::Order>, std::allocator<std::pair<unsigned long const, itc
+     2.01%  [.] void itch::dispatch<itch::StdBook>(unsigned char const*, unsigned short, itch::StdBook&, itch::TypeCounts&)                           
+     1.78%  [.] itch::CheckResult itch::check_book<itch::StdBook>(itch::StdBook const&, itch::TypeCounts const&) [clone .isra.0]                      
+     1.53%  [.] void itch::write_json<itch::StdBook>(_IO_FILE*, itch::StdBook const&, itch::TypeCounts const&, std::vector<std::__cxx11::basic_string<
