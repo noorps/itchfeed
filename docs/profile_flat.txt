@@ -1,0 +1,13 @@
+# perf record -e cpu-clock -F 2000 (software clock sampling; the WSL2 VM has no PMU),
+# itchfeed --ingest mmap --book flat on the first 25M messages of 12302019, pinned to cpu 2.
+# Self time by symbol, >= 1.0%. Compare docs/profile_baseline_std.txt.
+    36.11%  [.] itch::FlatBook::add(unsigned long, unsigned short, char, unsigned int, unsigned int)
+    24.05%  [.] itch::FlatBook::remove(itch::FlatBook::Order*)
+    19.00%  [.] void itch::dispatch<itch::FlatBook>(unsigned char const*, unsigned short, itch::FlatBook&, itch::TypeCounts&)
+     5.58%  [.] void itch::write_json<itch::FlatBook>(_IO_FILE*, itch::FlatBook const&, itch::TypeCounts const&, ...)
+     5.42%  [k] clear_page_erms
+     2.30%  [.] itch::FlatBook::reduce(unsigned long, unsigned int)
+     2.05%  [.] main
+     1.31%  [k] do_user_addr_fault
+     1.29%  [.] itch::CheckResult itch::check_book<itch::FlatBook>(itch::FlatBook const&, itch::TypeCounts const&)
+# flat tables: peak 1703856 orders in 8388608 slots, peak 734763 levels in 2097152 slots, 0 grows
