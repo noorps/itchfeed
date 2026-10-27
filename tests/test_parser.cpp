@@ -5,6 +5,7 @@
 #include <cstring>
 #include <vector>
 
+#include "itch/book_flat.hpp"
 #include "itch/book_std.hpp"
 #include "itch/parser.hpp"
 #include "itch/report.hpp"
@@ -83,8 +84,9 @@ void test_decode_fields() {
     CHECK(sd.locate == 42 && trim_symbol(sd.stock) == "AAPL");
 }
 
+template <class Book>
 void test_book_lifecycle() {
-    StdBook book;
+    Book book;
     TypeCounts c;
     feed(book, c, add(1, 100, 'B', 500, 10000));
     feed(book, c, add(1, 101, 'B', 200, 10000));
@@ -130,6 +132,47 @@ void test_book_lifecycle() {
     CHECK(c.n['A'] == 4 && c.n['E'] == 2 && c.n['U'] == 1 && c.total == 11);
 }
 
+// Many inserts and erases in a small table, forcing long probe runs,
+// wrap-around and growth; checked against the std book.
+void test_flat_table_churn() {
+    FlatBook flat(4, 4);  // 16 slots each, so it must grow
+    StdBook ref;
+    TypeCounts c1, c2;
+    uint64_t x = 12345;
+    auto rnd = [&]() { x ^= x << 13; x ^= x >> 7; x ^= x << 17; return x; };
+    std::vector<uint64_t> live;
+    uint64_t next_ref = 1;
+    for (int i = 0; i < 20000; ++i) {
+        if (live.empty() || rnd() % 3 != 0) {
+            const uint64_t ref_no = next_ref;
+            next_ref += rnd() % 7 + 1;  // unique, with gaps like real refs
+            Msg m = add(uint16_t(rnd() % 5 + 1), ref_no, rnd() % 2 ? 'B' : 'S', uint32_t(rnd() % 900 + 100),
+                        uint32_t(10000 + rnd() % 20 * 100));
+            feed(flat, c1, m);
+            feed(ref, c2, m);
+            live.push_back(ref_no);
+        } else {
+            size_t k = rnd() % live.size();
+            Msg m = Msg('D').hdr(1).u(live[k], 8);
+            feed(flat, c1, m);
+            feed(ref, c2, m);
+            live[k] = live.back();
+            live.pop_back();
+        }
+    }
+    CHECK(flat.table_grows() > 0);
+    CHECK(flat.live_orders() == ref.live_orders());
+    CHECK(flat.live_shares() == ref.live_shares());
+    for (uint16_t loc = 1; loc <= 5; ++loc)
+        for (char side : {'B', 'S'}) {
+            auto a = flat.levels(loc, side), b = ref.levels(loc, side);
+            CHECK(a.size() == b.size());
+            for (size_t i = 0; i < a.size() && i < b.size(); ++i)
+                CHECK(a[i].price == b[i].price && a[i].shares == b[i].shares && a[i].orders == b[i].orders);
+        }
+    CHECK(check_book(flat, c1).ok);
+}
+
 void test_bad_length_is_counted() {
     StdBook book;
     TypeCounts c;
@@ -144,7 +187,9 @@ void test_bad_length_is_counted() {
 int main() {
     test_lengths_match_spec();
     test_decode_fields();
-    test_book_lifecycle();
+    test_book_lifecycle<StdBook>();
+    test_book_lifecycle<FlatBook>();
+    test_flat_table_churn();
     test_bad_length_is_counted();
     if (failures) {
         std::fprintf(stderr, "%d check(s) failed\n", failures);

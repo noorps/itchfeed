@@ -45,6 +45,14 @@ def table(path):
     print(f"TSC: {fmt_range([d['tsc_ghz'] for d in rows], 4)} GHz (calibrated per run against CLOCK_MONOTONIC)")
     print(f"timer floor p50: {fmt_range([d['timer_floor_ns']['p50'] for d in rows])} ns "
           "(included in every latency sample, not subtracted)")
+    allocs = {}
+    for d in rows:
+        a = d.get("allocations_in_loop")
+        if a:
+            allocs.setdefault(config_key(d), set()).add((a["throughput"], a["latency"], d.get("table_grows", 0)))
+    for k, v in allocs.items():
+        print(f"allocations inside the timed loop, {k}: " +
+              "; ".join(f"throughput pass {t}, latency pass {l}, table grows {g}" for t, l, g in sorted(v)))
     print()
     print("Per-message latency in ns, median across runs [min-max across runs]:")
     print()

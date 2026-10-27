@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "itch/book_flat.hpp"
 #include "itch/book_std.hpp"
 #include "itch/ingest.hpp"
 #include "itch/parser.hpp"
@@ -35,6 +36,10 @@ int verify(Ingest& in, Book& book, const std::vector<std::string>& symbols) {
     CheckResult chk = check_book(book, counts);
     write_json(stdout, book, counts, symbols, chk);
     for (auto& f : chk.failures) std::fprintf(stderr, "FAIL: %s\n", f.c_str());
+    if constexpr (requires { book.peak_orders(); })
+        std::fprintf(stderr, "flat tables: peak %zu orders in %zu slots, peak %zu levels in %zu slots, %llu grows\n",
+                     book.peak_orders(), book.order_capacity(), book.peak_levels(), book.level_capacity(),
+                     (unsigned long long)book.table_grows());
     return chk.ok ? 0 : 1;
 }
 
@@ -52,7 +57,7 @@ int with_ingest(const std::string& ingest, const std::string& path, const std::v
 }  // namespace
 
 int main(int argc, char** argv) {
-    std::string path, ingest = "read", book = "std", symbols = "AAPL,MSFT,AMZN,TSLA,SPY,QQQ";
+    std::string path, ingest = "read", book = "flat", symbols = "AAPL,MSFT,AMZN,TSLA,SPY,QQQ";
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         auto val = [&]() -> std::string { return i + 1 < argc ? argv[++i] : ""; };
@@ -60,7 +65,7 @@ int main(int argc, char** argv) {
         else if (a == "--book") book = val();
         else if (a == "--symbols") symbols = val();
         else if (a == "-h" || a == "--help") {
-            std::puts("usage: itchfeed FILE|- [--ingest read|mmap] [--book std] [--symbols A,B,C]");
+            std::puts("usage: itchfeed FILE|- [--ingest read|mmap] [--book std|flat] [--symbols A,B,C]");
             return 0;
         } else path = a;
     }
@@ -71,7 +76,8 @@ int main(int argc, char** argv) {
     if (path == "-") ingest = "read";
     auto syms = split(symbols);
     try {
-        return with_ingest<StdBook>(ingest, path, syms);
+        if (book == "std") return with_ingest<StdBook>(ingest, path, syms);
+        return with_ingest<FlatBook>(ingest, path, syms);
     } catch (const std::exception& e) {
         std::fprintf(stderr, "itchfeed: %s\n", e.what());
         return 2;

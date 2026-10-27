@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <new>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -20,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "itch/book_flat.hpp"
 #include "itch/book_std.hpp"
 #include "itch/ingest.hpp"
 #include "itch/parser.hpp"
@@ -27,12 +29,24 @@
 
 using namespace itch;
 
+// Count every operator new in the process, so the report can show how many
+// allocations happened inside the timed loops rather than asserting it.
+#pragma GCC diagnostic ignored "-Wmismatched-new-delete"
+static uint64_t g_allocs = 0;
+void* operator new(size_t n) {
+    ++g_allocs;
+    if (void* p = std::malloc(n ? n : 1)) return p;
+    throw std::bad_alloc();
+}
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete(void* p, size_t) noexcept { std::free(p); }
+
 namespace {
 
 struct Options {
     std::string path;
     std::string ingest = "read";
-    std::string book = "std";
+    std::string book = "flat";
     size_t read_buf = 64 * 1024;
     bool populate = false;
 };
@@ -103,17 +117,20 @@ int bench(const Options& o) {
         delete in;
     }
     const BookTotals warm = book.totals;
+    const uint64_t grows_after_warmup = book.table_grows();
     book.clear();
     counts.clear();
 
     // Throughput pass.
     PerfControl perf;
-    uint64_t read_calls = 0;
+    uint64_t read_calls = 0, a0 = 0, a1 = 0, a2 = 0, a3 = 0;
     perf.send("enable\n");
     const uint64_t w0 = mono_ns();
     {
         Ingest* in = Opener<Ingest>::open(o);
+        a0 = g_allocs;
         while (const uint8_t* m = in->next(len)) dispatch(m, len, book, counts);
+        a1 = g_allocs;
         read_calls = in->read_calls;
         delete in;
     }
@@ -128,6 +145,7 @@ int bench(const Options& o) {
     {
         Ingest* in = Opener<Ingest>::open(o);
         uint32_t* out = lat.data();
+        a2 = g_allocs;
         uint64_t t0 = tsc();
         while (const uint8_t* m = in->next(len)) {
             dispatch(m, len, book, counts);
@@ -135,6 +153,7 @@ int bench(const Options& o) {
             out[i++] = uint32_t(t1 - t0);
             t0 = t1;
         }
+        a3 = g_allocs;
         delete in;
     }
     const int cpu_end = sched_getcpu();
@@ -169,6 +188,8 @@ int bench(const Options& o) {
                 Ingest::name, Book::name, o.path.c_str(), o.read_buf, o.populate ? "true" : "false");
     std::printf(" \"cpu_start\": %d, \"cpu_end\": %d, \"tsc_ghz\": %.4f, \"messages\": %llu, \"read_calls\": %llu,\n",
                 cpu_start, cpu_end, ghz, (unsigned long long)n_msgs, (unsigned long long)read_calls);
+    std::printf(" \"allocations_in_loop\": {\"throughput\": %llu, \"latency\": %llu}, \"table_grows\": %llu,\n",
+                (unsigned long long)(a1 - a0), (unsigned long long)(a3 - a2), (unsigned long long)(book.table_grows() - grows_after_warmup));
     std::printf(" \"timer_floor_ns\": {\"p50\": %.1f, \"p99\": %.1f},\n", ns(pct(floor_samples, 0.50)),
                 ns(pct(floor_samples, 0.99)));
     std::printf(" \"throughput_msgs_per_sec\": %.0f, \"throughput_wall_ns\": %llu,\n",
@@ -222,7 +243,7 @@ int main(int argc, char** argv) {
         else if (a == "--read-buf") o.read_buf = std::stoul(val());
         else if (a == "--populate") o.populate = true;
         else if (a == "-h" || a == "--help") {
-            std::puts("usage: itchbench FILE [--ingest read|mmap] [--book std] [--read-buf BYTES] [--populate]");
+            std::puts("usage: itchbench FILE [--ingest read|mmap] [--book std|flat] [--read-buf BYTES] [--populate]");
             return 0;
         } else o.path = a;
     }
@@ -231,7 +252,8 @@ int main(int argc, char** argv) {
         return 2;
     }
     try {
-        return pick_ingest<StdBook>(o);
+        if (o.book == "std") return pick_ingest<StdBook>(o);
+        return pick_ingest<FlatBook>(o);
     } catch (const std::exception& e) {
         std::fprintf(stderr, "itchbench: %s\n", e.what());
         return 2;

@@ -67,6 +67,7 @@ public:
     }
 
     // ---- inspection (not on the hot path) ----
+    uint64_t table_grows() const { return 0; }
     uint64_t live_orders() const { return orders_.size(); }
     uint64_t live_shares() const {
         uint64_t s = 0;
