@@ -1,0 +1,4 @@
+file: data/real_12302019_first25m.itch (798778087 bytes, sha256 e9133f5fc47492a0...)
+runs: 5  cpu: 1  configs: read:std mmap:std read:flat mmap:flat  extra: none
+commit: 9b5a22b
+note: GitHub-hosted ubuntu-24.04 runner, Actions run 40604368549. perf stat hardware events all report <not supported>: the Azure VM exposes no PMU.

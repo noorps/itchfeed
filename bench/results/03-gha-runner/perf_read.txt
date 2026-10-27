@@ -1,0 +1,20 @@
+# started on Tue Oct 27 23:53:50 2026
+
+
+ Performance counter stats for 'taskset -c 1 build/itchbench data/real_12302019_first25m.itch --ingest read --book flat' (5 runs):
+
+           1852.09 msec task-clock                                                              ( +-  0.61% )
+   <not supported>      cycles                                                                
+   <not supported>      instructions                                                          
+   <not supported>      cache-references                                                      
+   <not supported>      cache-misses                                                          
+   <not supported>      branches                                                              
+   <not supported>      branch-misses                                                         
+   <not supported>      L1-dcache-load-misses                                                 
+   <not supported>      LLC-load-misses                                                       
+                 0      page-faults                                                           
+                13      context-switches                                                        ( +-  5.76% )
+                 0      cpu-migrations                                                        
+
+      10.581731830 +- 0.047647906 seconds time elapsed  ( +-  0.45% )
+
