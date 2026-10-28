@@ -200,6 +200,17 @@ Share totals: 5,757,141,328 added, 67,255,104 executed, 216,502,490 cancelled,
 3,925,442,574 deleted, 745,972,963 replaced out, 801,968,197 live at the end of
 the prefix. The balance holds exactly.
 
+The whole 2019-12-30 file, streamed through `gzip -dc` into both decoders at
+once, agrees the same way: 268,744,780 messages, 18 types, 47,597,537,971
+shares added and 0 live at the close, last system event `C` (end of messages),
+every balance check passing. The ladders are empty at that point because the
+book is empty at the end of the day, which is why the benchmark and the ladder
+comparison use the 25M prefix, where 1.68M orders are live.
+
+```
+match: 268744780 messages, 18 types, 0 price levels compared
+```
+
 `itchbench` also checks itself: the warmup pass, throughput pass and latency
 pass must end with the same share totals, or the run exits non-zero.
 
